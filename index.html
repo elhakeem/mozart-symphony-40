@@ -6,13 +6,13 @@
       margin: 0;
       background-color: #293149;
     }
-    main {
+    #main {
       padding: 50px;
       display: flex;
       justify-content: center;
       align-items: center;
     }
-    div {
+    #pic {
       width: 200px;
       height: 200px;
       border-radius: 50%;
@@ -23,17 +23,14 @@
       overflow: hidden;
       box-shadow: 0 -5px 6px 13px #00000036, 0px 12px 11px 10px #ffffff17;
     }
-    img {
+    #img {
       width: 100%;
       height: 100%;
       object-fit: cover;
       border-radius: 50%;
       margin: 15px;
     }
-    h1 {
-      color: white;
-    }
-    button {
+    #btn {
       background: transparent;
       border: none;
       width: 100px;
@@ -44,21 +41,20 @@
       margin-right: 120px;
       cursor: pointer;
     }
-    span {
+    #btn span {
       font-size: 50px;
       display: inline-block;
       transform: rotate(-150deg);
     }
-    button.active {
+    #btn.active {
       box-shadow: 0 -5px 6px 13px #00000036, 0px 12px 11px 10px #ffffff17,
         0 -5px 6px 13px #00000036 inset, 0px 12px 11px 10px #ffffff17 inset;
     }
-    button.active span {
+    #btn.active span {
         transform: rotate(-150deg) scale(.9);
     }
-    p {
+    #name {
         margin: 0;
-        /* padding: 15px; */
         font-size: 17px;
         color: #cacaca;
         font-weight: 100;
@@ -68,79 +64,153 @@
   </style>
 </head>
 <body>
-  <main>
-    <button><span>🔺</span></button>
-    <div>
-      <img src="mozart.jpg" alt="Mozzart" />
+  <main id="main">
+    <button id="btn"><span>🔺</span></button>
+    <div id="pic">
+      <img id="img" src="mozart.jpg" alt="Mozzart" />
     </div>
-    <p>Symphony No. 40<br /><b>Mozart</b></p>
+    <p id="name">Symphony No. 40<br /><b>Mozart</b></p>
   </main>
   <script>
-    let clicked = false;
-    document.querySelector("button").addEventListener("click", function () {
-      if (!clicked) {
-        clicked = true;
-        this.classList.add("active");
-        const audioCtx = new AudioContext();
+    let animationId
+    let clicked       = false;
+    const btn         = document.querySelector("#btn")
+    const mainEl      = document.querySelector('#main')
+    const barsArr     = Array(50).fill(0)
+    const baseColor   = "#293149"
+    const colorHue    = Math.floor(Math.random() * 360)
 
-        const audioEle = new Audio();
-        audioEle.src = "mozart.mp3";
-        audioEle.autoplay = true;
-        audioEle.preload = "auto";
-        const audioSourceNode = audioCtx.createMediaElementSource(audioEle);
+    const makeBtnActive = () => {
+      clicked = true;
+      btn.classList.add("active");
+    }
+    const makeBtnInactive = () => {
+      clicked = false;
+      btn.classList.remove("active");
+    }
+    const createAudioElement = () => {
+      const audioEle = new Audio();
+      audioEle.src = "mozart.mp3";
+      audioEle.autoplay = false;
+      audioEle.preload = "auto";
+      return audioEle
+    }
+    const createAudioContext = source => {
+      const audioCtx = new AudioContext();
+      const audioSourceNode = audioCtx.createMediaElementSource(source);
+      const analyserNode = audioCtx.createAnalyser();
 
-        const analyserNode = audioCtx.createAnalyser();
-        analyserNode.fftSize = 256;
-        const bufferLength = analyserNode.frequencyBinCount;
-        const dataArray = new Float32Array(bufferLength);
+      analyserNode.fftSize = 256;
+      const bufferLength = analyserNode.frequencyBinCount;
 
-        audioSourceNode.connect(analyserNode);
-        analyserNode.connect(audioCtx.destination);
+      audioSourceNode.connect(analyserNode);
+      analyserNode.connect(audioCtx.destination);
 
-        const canvas = document.createElement("canvas");
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight - document.querySelector('main').offsetHeight;
-        document.body.appendChild(canvas);
-        const canvasCtx = canvas.getContext("2d");
-        canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
-
-        function draw() {
-          requestAnimationFrame(draw);
-
-          analyserNode.getFloatFrequencyData(dataArray);
-
-          canvasCtx.fillStyle = "#293149";
-          canvasCtx.fillRect(0, 0, canvas.width, canvas.height);
-
-          const pointsGap = canvas.width / bufferLength;
-          let x = 0;
-          let y = canvas.height;
-          let yMax = y;
-          canvasCtx.beginPath();
-          for (let i = 0; i < bufferLength; i++) {
-            const wavePeak = ((dataArray[i] + 100) * 2) + 200;
-            y = canvas.height - wavePeak;
-            yMax = Math.min(yMax, y);
-            if (i !== 0) {
-              x += pointsGap;
-              canvasCtx.lineTo(x, y);
-            } else {
-              canvasCtx.moveTo(x, y);
-              x += pointsGap;
-            }
-          }
-          canvasCtx.lineTo(window.innerWidth, canvas.height);
-          canvasCtx.lineTo(0, canvas.height);
-          canvasCtx.closePath();
-          const grd = canvasCtx.createLinearGradient(0, yMax, 0, canvas.height);
-          grd.addColorStop(0, "red");
-        //   grd.addColorStop(0.3, "#293149");
-          grd.addColorStop(1, "#293149");
-          canvasCtx.fillStyle = grd;
-          canvasCtx.fill();
-        }
-        draw();
+      return {
+        analyser: analyserNode,
+        length: bufferLength
       }
-    });
+    }
+    const createCanvas = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight - mainEl.offsetHeight;
+      document.body.appendChild(canvas);
+      const canvasCtx = canvas.getContext("2d");
+      canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
+      return {
+        drawCtx: canvasCtx,
+        width: canvas.width,
+        height: canvas.height
+      }
+    }
+    const clearCanvas = (ctx, width, height) => {
+      ctx.fillStyle = baseColor;
+      ctx.fillRect(0, 0, width, height);
+    }
+    const drawWave = (ctx, data, width, height) => {
+      clearCanvas(ctx, width, height)
+      const pointsGap = width / data.length;
+      let x = 0;
+      let y = height;
+      let yMax = y;
+      ctx.beginPath();
+      for (let i = 0; i < data.length; i++) {
+        const wavePeak = ((data[i] + 100) * 2) + 200;
+        y = height - wavePeak;
+        yMax = Math.min(yMax, y);
+        if (i !== 0) {
+          x += pointsGap;
+          ctx.lineTo(x, y);
+        } else {
+          ctx.moveTo(x, y);
+          x += pointsGap;
+        }
+      }
+      ctx.lineTo(window.innerWidth, height);
+      ctx.lineTo(0, height);
+      ctx.closePath();
+      const grd = ctx.createLinearGradient(0, yMax, 0, height);
+      grd.addColorStop(0, `hsl(${colorHue}deg 50% 50%)`);
+      grd.addColorStop(1, baseColor);
+      ctx.fillStyle = grd;
+      ctx.fill();
+    }
+    const drawBars = (ctx, data, width, height) => {
+      const y = Math.abs(data[32] * 3)
+      barsArr.push(y)
+      barsArr.shift()
+      clearCanvas(ctx, width, height)
+      const gap = 3
+      const barWidth = width / 50 - gap
+
+      for (let i = 0; i < barsArr.length; i++) {
+        const y = barsArr[i]
+        if (y === 0) continue;
+        const x = (barWidth + gap) * i
+        ctx.fillStyle = `hsl(${y}deg 50% 50%)`;
+        ctx.fillRect(x, y, barWidth, height);
+      }
+    }
+    const render = (analyser, dataArr, ctx, width, height) => {
+      animationId = requestAnimationFrame(() => {
+        render(analyser, dataArr, ctx, width, height)
+      });
+      analyser.getFloatFrequencyData(dataArr);
+      // drawWave(ctx, dataArr, width, height)
+      drawBars(ctx, dataArr, width, height)
+    }
+    const init = () => {
+      let length, analyser
+      const audioEl = createAudioElement()
+      const {drawCtx, width, height} = createCanvas()
+
+      const start = () => {
+        if (!analyser) {
+          const context = createAudioContext(audioEl)
+          length = context.length
+          analyser = context.analyser
+        }
+        const dataArr = new Float32Array(length)
+        makeBtnActive()
+        audioEl.play()
+        render(analyser, dataArr, drawCtx, width, height)
+      }
+      const stop = () => {
+        makeBtnInactive()
+        audioEl.pause()
+        cancelAnimationFrame(animationId)
+      }
+
+      btn.addEventListener('click', () => {
+        if (!clicked) {
+          start()
+        } else {
+          stop()
+        }
+      })
+
+    }
+    init()
   </script>
 </body>
